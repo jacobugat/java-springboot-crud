@@ -2,6 +2,7 @@ package com.example.crud.controller;
 
 import com.example.crud.model.Persona;
 import com.example.crud.repository.PersonaRepository;
+import jakarta.validation.Valid; // Importante para que funcione el validador
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,32 +10,45 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/personas")
-@RequiredArgsConstructor // Genera el constructor para los atributos 'final'
-@CrossOrigin(origins = "http://localhost:4200") // Esto permitirá que Angular se conecte luego
+@RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:4200") // Listo para conectar con Angular después
 public class PersonaController {
 
-    // Usamos 'final' para que la inyección sea por constructor (lo recomendado)
     private final PersonaRepository personaRepository;
 
-    // Obtener la lista de todas las personas
+    // 1. OBTENER TODAS LAS PERSONAS (READ)
     @GetMapping
     public List<Persona> listarPersonas() {
         return personaRepository.findAll();
     }
 
-    // Guardar una nueva persona
+    // 2. OBTENER UNA PERSONA POR ID (READ)
+    @GetMapping("/{id}")
+    public Persona obtenerPorId(@PathVariable Long id) {
+        return personaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("No existe la persona con id: " + id));
+    }
+
+    // 3. GUARDAR UNA NUEVA PERSONA (CREATE) - Ahora con @Valid
     @PostMapping
-    public Persona guardarPersona(@RequestBody Persona persona) {
+    public Persona guardarPersona(@Valid @RequestBody Persona persona) {
         return personaRepository.save(persona);
     }
 
-    // Buscar una persona por ID (Extra para tu CRUD)
-    @GetMapping("/{id}")
-    public Persona obtenerPorId(@PathVariable Long id) {
-        return personaRepository.findById(id).orElse(null);
+    // 4. ACTUALIZAR UNA PERSONA EXISTENTE (UPDATE) - Ahora con @Valid
+    @PutMapping("/{id}")
+    public Persona actualizarPersona(@PathVariable Long id, @Valid @RequestBody Persona personaActualizada) {
+        Persona personaDoc = personaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("No existe la persona con id: " + id));
+
+        personaDoc.setNombre(personaActualizada.getNombre());
+        personaDoc.setApellido(personaActualizada.getApellido());
+        personaDoc.setEmail(personaActualizada.getEmail());
+
+        return personaRepository.save(personaDoc);
     }
 
-    // Eliminar una persona (Extra para tu CRUD)
+    // 5. ELIMINAR UNA PERSONA (DELETE)
     @DeleteMapping("/{id}")
     public void eliminarPersona(@PathVariable Long id) {
         personaRepository.deleteById(id);

@@ -1,75 +1,83 @@
 package com.example.crud.controller;
 
 import com.example.crud.model.AuthResponse;
+import com.example.crud.model.LoginRequest; // Importamos el nuevo modelo
 import com.example.crud.model.Usuario;
-import com.example.crud.service.UsuarioService;
 import com.example.crud.repository.UsuarioRepository;
+import com.example.crud.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/auth")
+// El CORS ya lo manejamos en SecurityConfig, así que aquí no es estrictamente necesario
 public class AuthController {
-
-    @Autowired
-    private UsuarioService usuarioService;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
 
     @Autowired
+    private UsuarioService usuarioService;
+
+    @Autowired
     private BCryptPasswordEncoder encoder;
 
-    // PASO 2: Validar Usuario y Contraseña
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String password = request.get("password");
+    @Autowired
+    private JwtUtil jwtUtil; // Inyectamos la utilidad
 
-        System.out.println("DEBUG -> Usuario recibido de Angular: [" + username + "]");
-        System.out.println("DEBUG -> Password recibido de Angular: [" + password + "]");
-
-        return usuarioRepository.findByUsername(username)
-                .map(usuario -> {
-                    // Comparamos la clave escrita con la de la DB (BCrypt)
-                    if (encoder.matches(password, usuario.getPassword())) {
-
-                        // Si el usuario tiene MFA activo, pedimos el código
-                        if (usuario.isMfaEnabled()) {
-                            return ResponseEntity.ok(new AuthResponse(username, "MFA_REQUIRED", "Por favor, ingresa el código de tu celular"));
-                        }
-
-                        // Si no tiene MFA, entra directo
-                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", "Login exitoso"));
-                    }
-                    return ResponseEntity.status(401).body("Contraseña incorrecta");
-                })
-                .orElse(ResponseEntity.status(401).body("Usuario no encontrado"));
-    }
-
-    // PASO 3: Validar el código de 6 dígitos del Authenticator
     @GetMapping("/validar-mfa/{username}/{codigo}")
     public ResponseEntity<?> validarMFA(@PathVariable String username, @PathVariable int codigo) {
         return usuarioRepository.findByUsername(username)
                 .map(usuario -> {
                     boolean esValido = usuarioService.verificarCodigoMFA(usuario.getMfaSecret(), codigo);
                     if (esValido) {
-                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", "Autenticación completada"));
+                        // GENERAMOS EL TOKEN AQUÍ
+                        String token = jwtUtil.generateToken(username);
+                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", token));
                     }
-                    return ResponseEntity.status(401).body("Código de Authenticator inválido o expirado");
+                    return ResponseEntity.status(401).body("Código inválido");
                 })
                 .orElse(ResponseEntity.status(404).body("Usuario no encontrado"));
     }
 
-    // Para ver el QR (Solo se usa la primera vez al configurar)
-    @GetMapping("/test-mfa/{username}")
-    public String obtenerQrMFA(@PathVariable String username) {
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        String username = request.getUsername();
+        String password = request.getPassword();
+
+        // Debug para ver en la consola de IntelliJ
+        System.out.println("Intento de login para: " + username);
+        System.out.println("NUEVO HASH PARA LA DB: " + encoder.encode("123456"));
+
         return usuarioRepository.findByUsername(username)
-                .map(usuario -> usuarioService.obtenerQrUrl(usuario))
-                .orElse("Usuario no encontrado");
+                .map(usuario -> {
+                    // Verificación técnica de BCrypt
+                    if (encoder.matches(password, usuario.getPassword())) {
+
+                        if (usuario.isMfaEnabled()) {
+                            return ResponseEntity.ok(new AuthResponse(username, "MFA_REQUIRED", "Código requerido"));
+                        }
+
+                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", "Login directo exitoso"));
+                    }
+                    System.out.println("Password incorrecto para: " + username);
+                    return ResponseEntity.status(401).body("Credenciales inválidas");
+                })
+                .orElseGet(() -> ResponseEntity.status(401).body("Usuario no encontrado"));
+    }
+
+    @GetMapping("/validar-mfa/{username}/{codigo}")
+    public ResponseEntity<?> validarMFA(@PathVariable String username, @PathVariable int codigo) {
+        return usuarioRepository.findByUsername(username)
+                .map(usuario -> {
+                    boolean esValido = usuarioService.verificarCodigoMFA(usuario.getMfaSecret(), codigo);
+                    if (esValido) {
+                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", "MFA Correcto"));
+                    }
+                    return ResponseEntity.status(401).body("Código inválido");
+                })
+                .orElse(ResponseEntity.status(404).body("Usuario no encontrado"));
     }
 }

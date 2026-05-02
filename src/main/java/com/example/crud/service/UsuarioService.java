@@ -27,6 +27,14 @@ public class UsuarioService {
         return gAuth.authorize(secreto, codigo);
     }
 
+    public String obtenerQrUrl(Usuario usuario) {
+        // Esta es la "frase mágica" que el celular lee en el QR
+        // otpauth://totp/NOMBRE_APP:USUARIO?secret=SECRETO&issuer=NOMBRE_APP
+        return String.format("otpauth://totp/MiProyecto:%s?secret=%s&issuer=MiProyecto",
+                usuario.getUsername(),
+                usuario.getMfaSecret());
+    }
+
     @Autowired
     private UsuarioRepository repository;
 

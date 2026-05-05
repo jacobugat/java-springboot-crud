@@ -35,27 +35,34 @@ public class Persona {
     @Column(unique = true)
     private String email;
 
-    // --- ESCUDO 1: SETTERS MANUALES (Para limpiar antes de responder a Postman) ---
+    // --- ESCUDO 1: SETTERS MANUALES (Para limpiar antes de responder a Postman/Angular) ---
+    // Nota: Aunque uses @Setter de Lombok, estos métodos manuales tienen prioridad.
 
     public void setNombre(String nombre) {
-        this.nombre = nombre != null ? Jsoup.clean(nombre, Safelist.none()) : null;
+        this.nombre = (nombre != null) ? Jsoup.clean(nombre, Safelist.none()) : null;
     }
 
     public void setApellido(String apellido) {
-        this.apellido = apellido != null ? Jsoup.clean(apellido, Safelist.none()) : null;
+        this.apellido = (apellido != null) ? Jsoup.clean(apellido, Safelist.none()) : null;
     }
 
     public void setEmail(String email) {
-        this.email = email != null ? Jsoup.clean(email, Safelist.none()) : null;
+        this.email = (email != null) ? Jsoup.clean(email, Safelist.none()) : null;
     }
 
-    // --- ESCUDO 2: PRE-PERSIST (Doble seguridad antes de entrar a MySQL) ---
+    // --- ESCUDO 2: PRE-PERSIST / PRE-UPDATE (Doble seguridad antes de entrar a MySQL) ---
 
     @PrePersist
     @PreUpdate
     public void asegurarLimpieza() {
-        if (this.nombre != null) this.nombre = Jsoup.clean(this.nombre, Safelist.none());
-        if (this.apellido != null) this.apellido = Jsoup.clean(this.apellido, Safelist.none());
-        if (this.email != null) this.email = Jsoup.clean(this.email, Safelist.none());
+        if (this.nombre != null) {
+            this.nombre = Jsoup.clean(this.nombre, Safelist.none());
+        }
+        if (this.apellido != null) {
+            this.apellido = Jsoup.clean(this.apellido, Safelist.none());
+        }
+        if (this.email != null) {
+            this.email = Jsoup.clean(this.email, Safelist.none());
+        }
     }
 }

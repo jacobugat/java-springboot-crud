@@ -5,35 +5,11 @@ import com.example.crud.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.warrenstrange.googleauth.GoogleAuthenticator;
-import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
 
 import java.time.LocalDate;
-import java.util.Optional;
 
 @Service
 public class UsuarioService {
-
-    private final GoogleAuthenticator gAuth = new GoogleAuthenticator();
-
-    // Paso A: Generar la llave secreta para el celular (se hace una sola vez)
-    public String generarSecretoMFA() {
-        final GoogleAuthenticatorKey key = gAuth.createCredentials();
-        return key.getKey(); // Este es el código que guardaremos en la DB
-    }
-
-    // Paso B: Validar el código de 6 dígitos que ves en Microsoft Authenticator
-    public boolean verificarCodigoMFA(String secreto, int codigo) {
-        return gAuth.authorize(secreto, codigo);
-    }
-
-    public String obtenerQrUrl(Usuario usuario) {
-        // Esta es la "frase mágica" que el celular lee en el QR
-        // otpauth://totp/NOMBRE_APP:USUARIO?secret=SECRETO&issuer=NOMBRE_APP
-        return String.format("otpauth://totp/MiProyecto:%s?secret=%s&issuer=MiProyecto",
-                usuario.getUsername(),
-                usuario.getMfaSecret());
-    }
 
     @Autowired
     private UsuarioRepository repository;
@@ -59,8 +35,9 @@ public class UsuarioService {
         return LocalDate.now().isAfter(limite);
     }
 
+    // Validación de formato de contraseña
     public void validarPassword(String password) {
-        // Esta "fórmula" mágica revisa: mín 8 caracteres, 1 mayúscula, 1 número y 1 símbolo
+        // Esta "fórmula" revisa: mín 8 caracteres, 1 mayúscula, 1 número y 1 símbolo
         String regex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$";
 
         if (!password.matches(regex)) {

@@ -18,10 +18,4 @@ public class Usuario {
 
     @Column(name = "fecha_ultimo_cambio")
     private LocalDate fechaUltimoCambio;
-
-    @Column(name = "mfa_secret")
-    private String mfaSecret;
-
-    @Column(name = "mfa_enabled")
-    private boolean mfaEnabled;
 }

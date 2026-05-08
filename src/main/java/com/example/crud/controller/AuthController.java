@@ -9,8 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "http://localhost:4200") // Permite que Angular se conecte
 public class AuthController {
 
     @Autowired
@@ -29,13 +32,27 @@ public class AuthController {
 
         return usuarioRepository.findByUsername(username)
                 .map(usuario -> {
+                    // Verificamos si la contraseña coincide
                     if (encoder.matches(password, usuario.getPassword())) {
-                        // Generamos token directo (sin MFA)
+
+                        // 1. Generamos el token JWT directo
                         String token = jwtUtil.generateToken(username);
-                        return ResponseEntity.ok(new AuthResponse(username, "SUCCESS", token));
+
+                        // 2. Devolvemos la respuesta con el nuevo constructor:
+                        // Estructura: username, status, token, message
+                        return ResponseEntity.ok(new AuthResponse(
+                                username,
+                                "SUCCESS",
+                                token,
+                                "Login exitoso"
+                        ));
+                    } else {
+                        // Error 401 si la contraseña no coincide
+                        return ResponseEntity.status(401)
+                                .body(new AuthResponse(username, "ERROR", null, "Contraseña incorrecta"));
                     }
-                    return ResponseEntity.status(401).body("Credenciales inválidas");
                 })
-                .orElseGet(() -> ResponseEntity.status(401).body("Usuario no encontrado"));
+                .orElseGet(() -> ResponseEntity.status(401)
+                        .body(new AuthResponse(username, "ERROR", null, "Usuario no encontrado")));
     }
 }
